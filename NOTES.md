@@ -96,31 +96,32 @@ Cấu hình hai lần chạy giống nhau hoàn toàn: provider và judge provid
 - **Giới hạn của snapshot:** snapshot có phạm vi cố định (ví dụ chỉ tìm trong tối đa 50 incident gần nhất và trả tối đa 5 mục), không phản ánh trạng thái live hay toàn bộ lịch sử năm 2025.
 - **Giới hạn của việc chỉ chạy một lần mỗi phiên bản:** một lần chạy cho mỗi phiên bản không chứng minh độ ổn định (có thể xuất hiện dao động điểm hoặc hồi quy như H2). Kiểm thử offline chỉ xác nhận contract trong code, không bảo đảm model luôn tuân thủ prompt ở mọi lần chạy.
 
-## 6. Ghi chú Bonus, thư mục lưu các phiên bản & ánh xạ 3 file eval
+## 6. Ghi chú Bonus, thư mục lưu các phiên bản & ánh xạ các file eval
 
 ### Thư mục chứa toàn bộ các phiên bản `agent.py`
 
-- Toàn bộ **21 phiên bản** được lưu theo đúng thứ tự thời gian trong thư mục [`agent_versions/`](agent_versions/) từ [`agent_v00_starter_head.py`](agent_versions/agent_v00_starter_head.py) đến [`agent_v20_current_bonus_15.py`](agent_versions/agent_v20_current_bonus_15.py).
-- File [`agent.py`](agent.py) hiện tại ở thư mục gốc trùng khớp hoàn toàn với [`agent_versions/agent_v20_current_bonus_15.py`](agent_versions/agent_v20_current_bonus_15.py) (SHA-1 `23bcbfb2dd`).
+- Toàn bộ **22 phiên bản** được lưu theo đúng thứ tự thời gian trong thư mục [`agent_versions/`](agent_versions/) từ [`agent_v00_starter_head.py`](agent_versions/agent_v00_starter_head.py) đến [`agent_v21_generalized_bonus_15.py`](agent_versions/agent_v21_generalized_bonus_15.py).
+- File [`agent.py`](agent.py) hiện tại ở thư mục gốc trùng khớp hoàn toàn với [`agent_versions/agent_v21_generalized_bonus_15.py`](agent_versions/agent_v21_generalized_bonus_15.py) (SHA-1 `2f478eb3be`). Phiên bản [`agent_versions/agent_v20_current_bonus_15.py`](agent_versions/agent_v20_current_bonus_15.py) (SHA-1 `23bcbfb2dd`) được giữ nguyên làm mốc baseline của [`eval_bonus.json`](eval_bonus.json).
 
-### Phiên bản nào đã chạy 3 file kết quả eval
+### Phiên bản nào đã chạy các file kết quả eval
 
 | File kết quả eval | Version tương ứng | File trong `agent_versions/` | Cấu hình & kết quả |
 |---|---|---|---|
 | [`eval_before.json`](eval_before.json) | `v01` | [`agent_v01_eval_before.py`](agent_versions/agent_v01_eval_before.py) | `core` (`22/22`), **77,5/100**, `openrouter` · `openai/gpt-4o-mini`, `max_steps=8` |
 | [`eval_after.json`](eval_after.json) | `v02` | [`agent_v02_eval_after.py`](agent_versions/agent_v02_eval_after.py) | `core` (`22/22`), **79,64/100** (`+2,14`), `openrouter` · `openai/gpt-4o-mini`, `max_steps=8` |
-| [`eval_bonus.json`](eval_bonus.json) | `v20` (= `agent.py` hiện tại) | [`agent_v20_current_bonus_15.py`](agent_versions/agent_v20_current_bonus_15.py) | `bonus` (`10/10`), **100,0/100** (**15,0/15**), `openrouter` · `nvidia/nemotron-3.5-super-vl:free`, `max_steps=16` |
+| [`eval_bonus.json`](eval_bonus.json) | `v20` (baseline Bonus) | [`agent_v20_current_bonus_15.py`](agent_versions/agent_v20_current_bonus_15.py) | `bonus` (`10/10`), **100,0/100** (**15,0/15**), `openrouter` · `nvidia/nemotron-3.5-super-vl:free`, `max_steps=16` |
+| [`eval_bonus_generalized.json`](eval_bonus_generalized.json) | `v21` (= `agent.py` hiện tại) | [`agent_v21_generalized_bonus_15.py`](agent_versions/agent_v21_generalized_bonus_15.py) | `bonus` (`10/10`), **100,0/100** (**15,0/15**), `openrouter` · `nvidia/nemotron-3.5-super-vl:free`, `max_steps=16` |
 
 ### Tóm tắt kỹ thuật Bonus trong `agent.py` (theo [`GUIDE.md`](GUIDE.md#L156))
 
-- **Kết nối tools & tương thích bài chính:** `run_agent` lấy động `getattr(tools, 'schemas', SCHEMAS)` và `getattr(tools, 'system_prompt', SYSTEM_PROMPT)`, ghép thêm `TOOL_POLICY` (và `BONUS_REPORT_POLICY` khi schema có `offset`/pagination).
+- **Kết nối tools & tương thích bài chính:** `run_agent` lấy động `getattr(tools, 'schemas', SCHEMAS)` và `getattr(tools, 'system_prompt', SYSTEM_PROMPT)`, ghép thêm `TOOL_POLICY` (xác định phạm vi dịch vụ động theo tool/schema đang được cung cấp) và `BONUS_REPORT_POLICY` khi schema có `offset`/pagination.
 - **Retry & lỗi tham số:** trả `RATE_LIMITED` và `INVALID_ARGUMENTS` về model; đọc `Retry-After` qua `_retry_seconds` (số giây/HTTP-date, mặc định 2 giây khi thiếu header hợp lệ, tổng budget chờ 30 giây/run), chặn riêng từng cặp `(tool, provider)` sau 3 lỗi (`RETRY_LIMIT_REACHED` / `RETRY_WAIT_BUDGET_EXCEEDED`) mà không chặn provider khác.
 - **Pagination:** giữ `next_offset` và timeline từng trang; khi `next_offset` khác `None`, `_model_observation` thêm `pagination_note` nhắc đọc tiếp nếu cần bằng chứng, không tự tải toàn bộ hay tuyên bố đã đọc hết.
-- **Quản lý context & kiểm soát nguồn:** `_model_observation` bỏ trường nhiễu giả lập `distractors` (ghi `distractors_omitted`) khi gửi model nhưng giữ nguyên trong `trace`. Kết hợp gate URL (`validation_missing_source`, `_unobserved_urls` / `validation_unobserved_source`) và tối đa 1 lượt sửa văn bản không mở lại tools (`_bonus_gaps`, `_revision_messages`, `_text_repair_prompt`, `_evidence_appendix`).
+- **Quản lý context & kiểm soát nguồn:** `_model_observation` bỏ trường nhiễu giả lập `distractors` (ghi `distractors_omitted`) khi gửi model nhưng giữ nguyên trong `trace`. Kết hợp gate URL (`validation_missing_source`, `_unobserved_urls` / `validation_unobserved_source`) và tối đa 1 lượt sửa văn bản không mở lại tools (`_bonus_gaps` với `select_and_read_incident_details` / `assess_causality`, `_revision_messages`, `_text_repair_prompt`, `_evidence_appendix`).
 - **Kiểm thử, quy trình & giới hạn còn lại:**
-  - Unit tests offline hiện tại: `37/37` test chính (`tests/`) và `3/3` test bonus (`bonus/`) đều pass. *(Trong quá trình phát triển ở Phụ lục A bên dưới, hai bên cũng chạy thêm nhiều kịch bản kiểm thử mô phỏng 26–30 case offline để rà kỹ cơ chế retry, pagination và repair trước mỗi lần chạy eval thật.)*
-  - Phần Bonus được thực hiện theo từng vòng lặp giữa mình và trợ lý AI: mình trực tiếp chạy eval trên OpenRouter và chốt định hướng thiết kế/model, sau đó cả hai cùng đọc trace các case chưa đạt, thảo luận nguyên nhân gốc và cập nhật `agent.py` qua các mốc từ `v03` đến `v20`.
-  - `eval_bonus.json` (`15,0/15`) dùng `nvidia/nemotron-3.5-super-vl:free` (khác model `openai/gpt-4o-mini` ở `eval_before.json`/`eval_after.json`), và `eval_after.json` phản ánh `v02` trước khi thêm toàn bộ phần Bonus.
+  - Unit tests offline hiện tại: `37/37` test chính (`tests/`) và `3/3` test bonus (`bonus/`) trên repo gốc đều pass (`bonus/test_agent.py` đã được giữ nguyên trạng theo đề bài sau khi chạy kiểm chứng thêm 3 test tổng quát hóa ở `v21`). *(Trong quá trình phát triển ở Phụ lục A bên dưới, hai bên cũng chạy thêm nhiều kịch bản kiểm thử mô phỏng 26–30 case offline để rà kỹ cơ chế retry, pagination và repair trước mỗi lần chạy eval thật.)*
+  - Phần Bonus được thực hiện theo từng vòng lặp giữa mình và trợ lý AI: mình trực tiếp chạy eval trên OpenRouter và chốt định hướng thiết kế/model, sau đó cả hai cùng đọc trace các case chưa đạt, thảo luận nguyên nhân gốc và cập nhật `agent.py` qua các mốc từ `v03` đến `v21`.
+  - **Lý do đổi model ở phần Bonus (`v20`–`v21`):** cả [`eval_before.json`](eval_before.json) và [`eval_after.json`](eval_after.json) của bài chính đều giữ nguyên cùng một cấu hình `openai/gpt-4o-mini`. Sang phần Bonus, sau khi chạy nhiều vòng eval lặp trên `openai/gpt-4o-mini` qua OpenRouter (từ `v03` đến `v19`), tài khoản gặp rate limit / giới hạn quota của API nên ở [`eval_bonus.json`](eval_bonus.json) (`v20`, `15,0/15`) và [`eval_bonus_generalized.json`](eval_bonus_generalized.json) (`v21`, `15,0/15`) mình buộc phải chuyển sang dùng `nvidia/nemotron-3.5-super-vl:free` cho cả agent và judge (`max_steps=16`). Ngoài ra, `eval_after.json` vẫn phản ánh `v02` trước khi thêm phần Bonus và bản tổng quát hóa `v21`.
 
 ---
 
@@ -272,9 +273,9 @@ Hai bên cùng cập nhật `agent.py` thành `v16` (không hard-code theo ID ca
 
 ---
 
-## Phụ lục B — Chi tiết các phiên bản trung gian và hoàn thiện (`v00`, `v05`–`v06`, `v09`–`v10`, `v16`–`v20`)
+## Phụ lục B — Chi tiết các phiên bản trung gian và hoàn thiện (`v00`, `v05`–`v06`, `v09`–`v10`, `v16`–`v21`)
 
-*(Nhắc lại: thư mục lưu đầy đủ 21 file từ `v00` đến `v20` là [`agent_versions/`](agent_versions/); riêng `v01`–`v04`, `v07`–`v08`, `v11`–`v15` đã có mô tả và bảng điểm chi tiết trong Mục 1–4 và Phụ lục A.)*
+*(Nhắc lại: thư mục lưu đầy đủ 22 file từ `v00` đến `v21` là [`agent_versions/`](agent_versions/); riêng `v01`–`v04`, `v07`–`v08`, `v11`–`v15` đã có mô tả và bảng điểm chi tiết trong Mục 1–4 và Phụ lục A.)*
 
 ### Version `v00` — [agent_v00_starter_head.py](agent_versions/agent_v00_starter_head.py)
 
@@ -412,9 +413,9 @@ Cả hai cùng kiểm tra trace thấy nguyên nhân rất rõ: `B1, B2, B5, B8`
 - Nâng cấp `_text_repair_prompt`: cấm chép nguyên nhãn đầu dòng (`STATUS:`, `RETRY:`) và câu nhắc mẫu; phân tách kết luận 1 bên vs nhiều bên tự nhiên; tự động chèn cảnh báo chênh lệch nhiều `captured_at` hoặc truy vấn có filter chỉ trả overall.
 - Bổ sung gap `clarify_no_causality` trong `_bonus_gaps`, mở rộng kiểm tra `RATE_LIMITED` cho các `blocked_provs` khi thiếu ý giới hạn tối đa/outage (`B4`) và đồng bộ `_evidence_appendix`.
 
-### Version `v20` (bản hiện tại) — [agent_v20_current_bonus_15.py](agent_versions/agent_v20_current_bonus_15.py) / [agent.py](agent.py)
+### Version `v20` (baseline `eval_bonus.json`) — [agent_v20_current_bonus_15.py](agent_versions/agent_v20_current_bonus_15.py)
 
-Ở bước cuối cùng, mình đổi sang thử model `nvidia/nemotron-3.5-super-vl:free` qua OpenRouter (giữ `max_steps=16`, dataset `bonus`) và chạy lưu kết quả chính thức vào [eval_bonus.json](eval_bonus.json) (`22:34:31`): `10/10` case được chấm, trung bình **100,0/100**, quy đổi **15,0/15**, 0 vi phạm mechanical *(lưu ý kết quả này dùng model mới, khác `openai/gpt-4o-mini` ở các vòng trên)*.
+Ở mốc `v20`, do gặp rate limit / giới hạn quota trên `openai/gpt-4o-mini` sau nhiều vòng chạy eval qua OpenRouter, mình buộc phải chuyển sang `nvidia/nemotron-3.5-super-vl:free` cho cả agent và judge (giữ `max_steps=16`, dataset `bonus`) để chạy hoàn chỉnh 10/10 case và lưu kết quả baseline vào [eval_bonus.json](eval_bonus.json) (`22:34:31`): `10/10` case được chấm, trung bình **100,0/100**, quy đổi **15,0/15**, 0 vi phạm mechanical *(lưu ý kết quả này dùng model mới do bị rate limit, khác `openai/gpt-4o-mini` ở các vòng `v03`–`v19` và bài chính)*.
 
 | Case | Điểm | Phát hiện từ trace thực tế |
 |---|---:|---|
@@ -428,3 +429,17 @@ Cả hai cùng kiểm tra trace thấy nguyên nhân rất rõ: `B1, B2, B5, B8`
 | B8 | 100 | `steps=3`: phân tích chuẩn trạng thái `resolved`, phân biệt rõ DigitalOcean không ảnh hưởng app đang chạy nhưng ảnh hưởng deploy vs Vercel ảnh hưởng build & Dashboard, đủ 2 URL. |
 | B9 | 100 | `steps=1`: không gọi tool ngoài phạm vi, từ chối xác nhận outage hay bịa URL cho Linear/Slack. |
 | B10 | 100 | `steps=7`: kiểm tra đủ 5 bên, Vercel gặp 429 rồi retry thành công; `nemotron` gọi `npm`/`vercel` không truyền filter nhưng đã minh bạch nêu thiếu chi tiết cấp component thay vì bịa. |
+
+### Version `v21` (bản hiện tại) — [agent_v21_generalized_bonus_15.py](agent_versions/agent_v21_generalized_bonus_15.py) / [agent.py](agent.py)
+
+Sau mốc `v20`, để giảm phụ thuộc vào giả định cố định của bộ bonus mà vẫn giữ [`agent_v20_current_bonus_15.py`](agent_versions/agent_v20_current_bonus_15.py) và [`eval_bonus.json`](eval_bonus.json) làm baseline, mình và trợ lý AI tổng quát hóa thêm một bước ở [`agent.py`](agent.py) (`v21`):
+
+- **Tổng quát hóa `TOOL_POLICY` & `BONUS_REPORT_POLICY`:** bỏ danh sách 5 provider cố định khỏi `TOOL_POLICY` để model tự xác định phạm vi từ tools/schema được cung cấp (vẫn giữ `system_prompt` riêng của tools); bỏ hai ngày snapshot ví dụ cố định khỏi `BONUS_REPORT_POLICY` và bỏ gợi ý `limit=3` ở quy tắc chung bài chính cho các tool không có tham số đó.
+- **Không áp đặt sẵn kết luận nhân quả:** thay `clarify_no_causality` bằng `assess_causality` trong `_bonus_gaps` và `_text_repair_prompt`, yêu cầu model tự đối chiếu bằng chứng trong tool rồi kết luận có hoặc chưa đủ căn cứ; đồng thời bỏ việc tự chèn sẵn câu `"Không đủ bằng chứng..."` ở `_evidence_appendix`.
+- **Không mặc định `incidents[0]` là mới nhất:** thay `read_incident_details` chọn sẵn phần tử đầu bằng `select_and_read_incident_details`, truyền các ứng viên (`id`, `name`, `created_at`, `updated_at`) để model tự chọn theo phạm vi câu hỏi và phân biệt `created_at`/`updated_at`.
+- **Kiểm thử & toàn vẹn đề bài:** giữ nguyên `fixtures/`, `evals/`, `bonus/test_agent.py`, provider adapter và các file eval trước đó; sau khi chạy kiểm chứng thêm 3 kịch bản tổng quát hóa (không áp đặt kết luận nhân quả, không mặc định `incidents[0]`, không ghi đè phạm vi tool tùy biến) và giữ nguyên trạng file test đề bài, bộ test hiện tại đạt **37/37** tests gốc (`tests/`) và **3/3** bonus tests (`bonus/`).
+- **Kết quả chạy eval mới trên `v21`:** [`eval_bonus_generalized.json`](eval_bonus_generalized.json) (`12/11/2026 10:43:29`, OpenRouter · `nvidia/nemotron-3.5-super-vl:free`, `max_steps=16`, dataset `bonus`) đạt **`10/10` case được chấm**, trung bình **100,0/100**, quy đổi **15,0/15** (`28` model calls theo `usage`, `28` tool calls, `103.334` agent tokens / `43.962` judge tokens):
+  - **B4:** `validation_unobserved_source` chặn kịp thời URL suy diễn `https://www.vercel.status.io` ở bước 4 trước khi xuất câu trả lời cuối.
+  - **B10:** khắc phục điểm yếu của `v20` khi model chủ động truyền bộ lọc component (`Actions`, `publishing`, `Builds`) ngay từ bước 1 và giữ nguyên `Builds` khi retry sau HTTP 429 ở bước 2.
+  - **B2:** đọc 2 trang `offset=0` và `offset=3` (`limit=3`); vẫn còn 1 lần `validation_unobserved_source` do dấu backtick cuối URL trước khi model tự sửa đúng.
+  - **Giới hạn còn lại:** các heuristic từ khóa trong `_bonus_gaps` / `_revision_messages` vẫn còn; do tiếp tục gặp rate limit API với model cũ, [`eval_bonus_generalized.json`](eval_bonus_generalized.json) cũng sử dụng `nvidia/nemotron-3.5-super-vl:free` (khác với cấu hình `openai/gpt-4o-mini` được giữ nguyên đồng nhất ở `eval_before.json` và `eval_after.json` cho `v01`/`v02` bài chính).
